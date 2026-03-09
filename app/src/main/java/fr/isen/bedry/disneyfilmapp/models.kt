@@ -14,3 +14,10 @@ data class SagaItem(
     val id: String = "",
     val name: String = ""
 )
+
+data class FilmItem(
+    val title: String = "",
+    val year: String = "",
+    val genre: String = "",
+    val number: String = ""
+)

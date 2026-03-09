@@ -32,11 +32,12 @@ fun DisneyFilmApp(auth: FirebaseAuth, database: DatabaseReference) {
     var categories by remember { mutableStateOf(listOf<CategoryItem>()) }
     var franchises by remember { mutableStateOf(listOf<FranchiseItem>()) }
     var sagas by remember { mutableStateOf(listOf<SagaItem>()) }
-    var films by remember { mutableStateOf(listOf<String>()) }
+    var films by remember { mutableStateOf(listOf<FilmItem>()) }
 
     var selectedCategory by remember { mutableStateOf<CategoryItem?>(null) }
     var selectedFranchise by remember { mutableStateOf<FranchiseItem?>(null) }
     var selectedSaga by remember { mutableStateOf<SagaItem?>(null) }
+    var selectedFilm by remember { mutableStateOf<FilmItem?>(null) }
 
     LaunchedEffect(Unit) {
         database.child("categories")
@@ -107,12 +108,23 @@ fun DisneyFilmApp(auth: FirebaseAuth, database: DatabaseReference) {
                         sagas = tempSagas
                         films = emptyList()
                     } else if (filmsSnapshot.exists()) {
-                        val tempFilms = mutableListOf<String>()
+                        val tempFilms = mutableListOf<FilmItem>()
 
                         for (film in filmsSnapshot.children) {
-                            val titre = film.child("titre").getValue(String::class.java)
-                            if (titre != null) {
-                                tempFilms.add(titre)
+                            val titre = film.child("titre").getValue(String::class.java) ?: ""
+                            val annee = film.child("annee").value?.toString() ?: ""
+                            val genre = film.child("genre").getValue(String::class.java) ?: ""
+                            val numero = film.child("numero").value?.toString() ?: ""
+
+                            if (titre.isNotEmpty()) {
+                                tempFilms.add(
+                                    FilmItem(
+                                        title = titre,
+                                        year = annee,
+                                        genre = genre,
+                                        number = numero
+                                    )
+                                )
                             }
                         }
 
@@ -140,12 +152,23 @@ fun DisneyFilmApp(auth: FirebaseAuth, database: DatabaseReference) {
             .child("films")
             .addListenerForSingleValueEvent(object : ValueEventListener {
                 override fun onDataChange(snapshot: DataSnapshot) {
-                    val tempList = mutableListOf<String>()
+                    val tempList = mutableListOf<FilmItem>()
 
                     for (film in snapshot.children) {
-                        val titre = film.child("titre").getValue(String::class.java)
-                        if (titre != null) {
-                            tempList.add(titre)
+                        val titre = film.child("titre").getValue(String::class.java) ?: ""
+                        val annee = film.child("annee").value?.toString() ?: ""
+                        val genre = film.child("genre").getValue(String::class.java) ?: ""
+                        val numero = film.child("numero").value?.toString() ?: ""
+
+                        if (titre.isNotEmpty()) {
+                            tempList.add(
+                                FilmItem(
+                                    title = titre,
+                                    year = annee,
+                                    genre = genre,
+                                    number = numero
+                                )
+                            )
                         }
                     }
 
@@ -173,6 +196,7 @@ fun DisneyFilmApp(auth: FirebaseAuth, database: DatabaseReference) {
                     selectedCategory = category
                     selectedFranchise = null
                     selectedSaga = null
+                    selectedFilm = null
                     sagas = emptyList()
                     films = emptyList()
                     loadFranchises(category.id)
@@ -190,6 +214,7 @@ fun DisneyFilmApp(auth: FirebaseAuth, database: DatabaseReference) {
                 onFranchiseClick = { franchise ->
                     selectedFranchise = franchise
                     selectedSaga = null
+                    selectedFilm = null
                     loadSagasOrFilms(selectedCategory!!.id, franchise.id)
                 }
             )
@@ -205,12 +230,13 @@ fun DisneyFilmApp(auth: FirebaseAuth, database: DatabaseReference) {
                 },
                 onSagaClick = { saga ->
                     selectedSaga = saga
+                    selectedFilm = null
                     loadFilms(selectedCategory!!.id, selectedFranchise!!.id, saga.id)
                 }
             )
         }
 
-        else -> {
+        selectedFilm == null -> {
             FilmsScreen(
                 title = selectedSaga?.name ?: selectedFranchise?.name ?: "Films",
                 films = films,
@@ -219,8 +245,21 @@ fun DisneyFilmApp(auth: FirebaseAuth, database: DatabaseReference) {
                         selectedSaga = null
                     } else {
                         selectedFranchise = null
-                        films = emptyList()
                     }
+                },
+                onFilmClick = { film ->
+                    selectedFilm = film
+                }
+            )
+        }
+
+        else -> {
+            FilmDetailScreen(
+                film = selectedFilm!!,
+                auth = auth,
+                database = database,
+                onBackClick = {
+                    selectedFilm = null
                 }
             )
         }

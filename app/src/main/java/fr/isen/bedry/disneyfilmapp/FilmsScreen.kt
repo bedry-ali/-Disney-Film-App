@@ -1,12 +1,10 @@
 package fr.isen.bedry.disneyfilmapp
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -14,8 +12,9 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun FilmsScreen(
     title: String,
-    films: List<String>,
-    onBackClick: () -> Unit
+    films: List<FilmItem>,
+    onBackClick: () -> Unit,
+    onFilmClick: (FilmItem) -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -41,11 +40,15 @@ fun FilmsScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 12.dp)
+                        .clickable { onFilmClick(film) }
                 ) {
-                    Text(
-                        text = film,
-                        modifier = Modifier.padding(16.dp)
-                    )
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(text = film.title)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(text = "Year: ${film.year}")
+                        Text(text = "Genre: ${film.genre}")
+                        Text(text = "Episode: ${film.number}")
+                    }
                 }
             }
         }
