@@ -1,6 +1,8 @@
 package fr.isen.bedry.disneyfilmapp
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -22,6 +24,8 @@ fun FilmDetailScreen(
     var owned by remember { mutableStateOf(false) }
     var wantToGetRidOf by remember { mutableStateOf(false) }
 
+    var usersWhoOwnAndWantToGetRid by remember { mutableStateOf(listOf<String>()) }
+
     LaunchedEffect(film.title) {
         userId?.let { uid ->
             database.child("users")
@@ -41,6 +45,46 @@ fun FilmDetailScreen(
                     }
                 })
         }
+
+        database.child("users")
+            .addListenerForSingleValueEvent(object : ValueEventListener {
+                override fun onDataChange(snapshot: DataSnapshot) {
+                    val tempUsers = mutableListOf<String>()
+
+                    for (userSnapshot in snapshot.children) {
+                        val otherUserId = userSnapshot.key ?: continue
+                        val email = userSnapshot.child("email").getValue(String::class.java) ?: "Unknown user"
+
+                        val filmStatusSnapshot = userSnapshot
+                            .child("filmsStatus")
+                            .child(film.title)
+
+                        val otherOwned = filmStatusSnapshot
+                            .child("owned")
+                            .getValue(Boolean::class.java) ?: false
+
+                        val otherWantToGetRidOf = filmStatusSnapshot
+                            .child("wantToGetRidOf")
+                            .getValue(Boolean::class.java) ?: false
+
+                        // si tu veux exclure l'utilisateur connecté de la liste, garde cette condition
+                        if (otherUserId != userId && otherOwned && otherWantToGetRidOf) {
+                            tempUsers.add(email)
+                        }
+
+                        // si tu veux inclure aussi l'utilisateur connecté, remplace par :
+                        // if (otherOwned && otherWantToGetRidOf) {
+                        //     tempUsers.add(email)
+                        // }
+                    }
+
+                    usersWhoOwnAndWantToGetRid = tempUsers
+                }
+
+                override fun onCancelled(error: DatabaseError) {
+                    println("Firebase error: ${error.message}")
+                }
+            })
     }
 
     Column(
@@ -135,6 +179,34 @@ fun FilmDetailScreen(
             }
         }) {
             Text(if (wantToGetRidOf) "Want to get rid of ✅" else "Want to get rid of")
+        }
+
+        Spacer(modifier = Modifier.height(30.dp))
+
+        Text(
+            text = "Users who own this movie and want to get rid of it",
+            style = MaterialTheme.typography.titleMedium
+        )
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        if (usersWhoOwnAndWantToGetRid.isEmpty()) {
+            Text("No users found")
+        } else {
+            LazyColumn {
+                items(usersWhoOwnAndWantToGetRid) { email ->
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 8.dp)
+                    ) {
+                        Text(
+                            text = email,
+                            modifier = Modifier.padding(16.dp)
+                        )
+                    }
+                }
+            }
         }
     }
 }

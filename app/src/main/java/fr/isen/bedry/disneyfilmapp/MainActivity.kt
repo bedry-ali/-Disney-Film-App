@@ -28,6 +28,7 @@ class MainActivity : ComponentActivity() {
 fun DisneyFilmApp(auth: FirebaseAuth, database: DatabaseReference) {
 
     var isLoggedIn by remember { mutableStateOf(true) }
+    var showProfile by remember { mutableStateOf(false) }
 
     var categories by remember { mutableStateOf(listOf<CategoryItem>()) }
     var franchises by remember { mutableStateOf(listOf<FranchiseItem>()) }
@@ -189,6 +190,25 @@ fun DisneyFilmApp(auth: FirebaseAuth, database: DatabaseReference) {
             )
         }
 
+        showProfile -> {
+            ProfileScreen(
+                auth = auth,
+                database = database,
+                onBackClick = {
+                    showProfile = false
+                },
+                onLogoutClick = {
+                    auth.signOut()
+                    showProfile = false
+                    selectedCategory = null
+                    selectedFranchise = null
+                    selectedSaga = null
+                    selectedFilm = null
+                    isLoggedIn = false
+                }
+            )
+        }
+
         selectedCategory == null -> {
             CategoriesScreen(
                 categories = categories,
@@ -200,6 +220,9 @@ fun DisneyFilmApp(auth: FirebaseAuth, database: DatabaseReference) {
                     sagas = emptyList()
                     films = emptyList()
                     loadFranchises(category.id)
+                },
+                onProfileClick = {
+                    showProfile = true
                 }
             )
         }

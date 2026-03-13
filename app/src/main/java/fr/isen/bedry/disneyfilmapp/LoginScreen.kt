@@ -15,6 +15,7 @@ fun LoginScreen(
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var errorMessage by remember { mutableStateOf("") }
 
     Column(
         modifier = Modifier
@@ -28,7 +29,10 @@ fun LoginScreen(
 
         OutlinedTextField(
             value = email,
-            onValueChange = { email = it },
+            onValueChange = {
+                email = it
+                errorMessage = ""
+            },
             label = { Text("Email") }
         )
 
@@ -36,19 +40,56 @@ fun LoginScreen(
 
         OutlinedTextField(
             value = password,
-            onValueChange = { password = it },
+            onValueChange = {
+                password = it
+                errorMessage = ""
+            },
             label = { Text("Password") }
         )
 
         Spacer(modifier = Modifier.height(20.dp))
 
+        if (errorMessage.isNotEmpty()) {
+            Text(
+                text = errorMessage,
+                color = MaterialTheme.colorScheme.error
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+        }
+
         Button(onClick = {
-            auth.signInWithEmailAndPassword(email, password)
-                .addOnCompleteListener {
-                    if (it.isSuccessful) {
-                        onLoginSuccess()
+            val cleanEmail = email.trim()
+            val cleanPassword = password.trim()
+
+            if (cleanEmail.isEmpty() || cleanPassword.isEmpty()) {
+                errorMessage = "Please fill in all fields"
+                return@Button
+            }
+
+            auth.signInWithEmailAndPassword(cleanEmail, cleanPassword)
+                .addOnCompleteListener { task ->
+                    if (task.isSuccessful) {
+                        val userId = auth.currentUser?.uid
+                        val currentEmail = auth.currentUser?.email ?: cleanEmail
+
+                        if (userId != null) {
+                            FirebaseDatabase.getInstance()
+                                .reference
+                                .child("users")
+                                .child(userId)
+                                .child("email")
+                                .setValue(currentEmail)
+                                .addOnSuccessListener {
+                                    onLoginSuccess()
+                                }
+                                .addOnFailureListener { e ->
+                                    errorMessage = e.message ?: "Database save failed"
+                                }
+                        } else {
+                            errorMessage = "User ID not found"
+                        }
                     } else {
-                        println(it.exception?.message)
+                        errorMessage = task.exception?.message ?: "Login failed"
                     }
                 }
         }) {
@@ -58,24 +99,37 @@ fun LoginScreen(
         Spacer(modifier = Modifier.height(10.dp))
 
         Button(onClick = {
-            auth.createUserWithEmailAndPassword(email, password)
-                .addOnCompleteListener {
-                    if (it.isSuccessful) {
+            val cleanEmail = email.trim()
+            val cleanPassword = password.trim()
+
+            if (cleanEmail.isEmpty() || cleanPassword.isEmpty()) {
+                errorMessage = "Please fill in all fields"
+                return@Button
+            }
+
+            auth.createUserWithEmailAndPassword(cleanEmail, cleanPassword)
+                .addOnCompleteListener { task ->
+                    if (task.isSuccessful) {
                         val userId = auth.currentUser?.uid
 
                         if (userId != null) {
-                            val userMap = mapOf("email" to email)
-
                             FirebaseDatabase.getInstance()
                                 .reference
                                 .child("users")
                                 .child(userId)
-                                .setValue(userMap)
-
-                            onLoginSuccess()
+                                .child("email")
+                                .setValue(cleanEmail)
+                                .addOnSuccessListener {
+                                    onLoginSuccess()
+                                }
+                                .addOnFailureListener { e ->
+                                    errorMessage = e.message ?: "Database save failed"
+                                }
+                        } else {
+                            errorMessage = "User ID not found"
                         }
                     } else {
-                        println(it.exception?.message)
+                        errorMessage = task.exception?.message ?: "Register failed"
                     }
                 }
         }) {
