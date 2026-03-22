@@ -8,13 +8,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.*
+import fr.isen.bedry.disneyfilmapp.ui.theme.DarkCard
+import fr.isen.bedry.disneyfilmapp.ui.theme.GrayText
+import fr.isen.bedry.disneyfilmapp.ui.theme.WhiteText
 
 @Composable
 fun ProfileScreen(
     auth: FirebaseAuth,
     database: DatabaseReference,
     onBackClick: () -> Unit,
-    onLogoutClick: () -> Unit
+    onLogoutClick: () -> Unit,
+    onProfileClick: () -> Unit
 ) {
     val userId = auth.currentUser?.uid
     val userEmail = auth.currentUser?.email ?: "Unknown user"
@@ -38,18 +42,10 @@ fun ProfileScreen(
 
                         for (filmSnapshot in snapshot.children) {
                             val filmTitle = filmSnapshot.key ?: continue
-
-                            val watched = filmSnapshot.child("watched")
-                                .getValue(Boolean::class.java) ?: false
-
-                            val owned = filmSnapshot.child("owned")
-                                .getValue(Boolean::class.java) ?: false
-
-                            val wantToWatch = filmSnapshot.child("wantToWatch")
-                                .getValue(Boolean::class.java) ?: false
-
-                            val wantToGetRidOf = filmSnapshot.child("wantToGetRidOf")
-                                .getValue(Boolean::class.java) ?: false
+                            val watched = filmSnapshot.child("watched").getValue(Boolean::class.java) ?: false
+                            val owned = filmSnapshot.child("owned").getValue(Boolean::class.java) ?: false
+                            val wantToWatch = filmSnapshot.child("wantToWatch").getValue(Boolean::class.java) ?: false
+                            val wantToGetRidOf = filmSnapshot.child("wantToGetRidOf").getValue(Boolean::class.java) ?: false
 
                             if (watched) watchedList.add(filmTitle)
                             if (owned) ownedList.add(filmTitle)
@@ -63,9 +59,7 @@ fun ProfileScreen(
                         wantToGetRidOfMovies = wantToGetRidOfList
                     }
 
-                    override fun onCancelled(error: DatabaseError) {
-                        println("Firebase error: ${error.message}")
-                    }
+                    override fun onCancelled(error: DatabaseError) {}
                 })
         }
     }
@@ -81,81 +75,34 @@ fun ProfileScreen(
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(20.dp)
+    UiScreen(
+        title = "Profile",
+        showBack = true,
+        onBackClick = onBackClick,
+        onProfileClick = onProfileClick,
+        onLogoutClick = onLogoutClick
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
+        Card(
+            colors = CardDefaults.cardColors(containerColor = DarkCard),
+            modifier = Modifier.fillMaxWidth()
         ) {
-            Button(onClick = { onBackClick() }) {
-                Text("Back")
-            }
-
-            Button(onClick = { onLogoutClick() }) {
-                Text("Logout")
+            Column(modifier = Modifier.padding(18.dp)) {
+                Text("Logged in as", color = GrayText)
+                Text(userEmail, color = WhiteText, style = MaterialTheme.typography.titleMedium)
             }
         }
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        Text(
-            text = "Profile",
-            style = MaterialTheme.typography.headlineMedium
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Text(text = "Email: $userEmail")
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        LazyColumn(
-            modifier = Modifier.fillMaxSize()
-        ) {
+        LazyColumn {
             item {
-                ProfileSection(
-                    title = "Watched movies",
-                    movies = watchedMovies,
-                    onRemove = { filmTitle ->
-                        removeStatus(filmTitle, "watched")
-                    }
-                )
-            }
-
-            item {
+                ProfileSection("Watched movies", watchedMovies) { removeStatus(it, "watched") }
                 Spacer(modifier = Modifier.height(16.dp))
-                ProfileSection(
-                    title = "Owned movies",
-                    movies = ownedMovies,
-                    onRemove = { filmTitle ->
-                        removeStatus(filmTitle, "owned")
-                    }
-                )
-            }
-
-            item {
+                ProfileSection("Owned movies", ownedMovies) { removeStatus(it, "owned") }
                 Spacer(modifier = Modifier.height(16.dp))
-                ProfileSection(
-                    title = "Want to watch",
-                    movies = wantToWatchMovies,
-                    onRemove = { filmTitle ->
-                        removeStatus(filmTitle, "wantToWatch")
-                    }
-                )
-            }
-
-            item {
+                ProfileSection("Want to watch", wantToWatchMovies) { removeStatus(it, "wantToWatch") }
                 Spacer(modifier = Modifier.height(16.dp))
-                ProfileSection(
-                    title = "Want to get rid of",
-                    movies = wantToGetRidOfMovies,
-                    onRemove = { filmTitle ->
-                        removeStatus(filmTitle, "wantToGetRidOf")
-                    }
-                )
+                ProfileSection("Want to get rid of", wantToGetRidOfMovies) { removeStatus(it, "wantToGetRidOf") }
             }
         }
     }
@@ -169,17 +116,19 @@ fun ProfileSection(
 ) {
     Text(
         text = title,
+        color = WhiteText,
         style = MaterialTheme.typography.titleLarge
     )
 
     Spacer(modifier = Modifier.height(8.dp))
 
     if (movies.isEmpty()) {
-        Text(text = "No movies")
+        Text("No movies", color = GrayText)
     } else {
         Column {
             movies.forEach { movie ->
                 Card(
+                    colors = CardDefaults.cardColors(containerColor = DarkCard),
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 8.dp)
@@ -190,9 +139,9 @@ fun ProfileSection(
                             .padding(16.dp),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(text = movie)
+                        Text(movie, color = WhiteText)
 
-                        Button(onClick = { onRemove(movie) }) {
+                        TextButton(onClick = { onRemove(movie) }) {
                             Text("Remove")
                         }
                     }

@@ -5,7 +5,12 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.*
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.database.*
+import com.google.firebase.database.DatabaseReference
+import com.google.firebase.database.DataSnapshot
+import com.google.firebase.database.DatabaseError
+import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.database.ValueEventListener
+import fr.isen.bedry.disneyfilmapp.ui.theme.DisneyFilmAppTheme
 
 class MainActivity : ComponentActivity() {
 
@@ -19,7 +24,9 @@ class MainActivity : ComponentActivity() {
         database = FirebaseDatabase.getInstance().reference
 
         setContent {
-            DisneyFilmApp(auth, database)
+            DisneyFilmAppTheme {
+                DisneyFilmApp(auth, database)
+            }
         }
     }
 }
@@ -28,6 +35,7 @@ class MainActivity : ComponentActivity() {
 fun DisneyFilmApp(auth: FirebaseAuth, database: DatabaseReference) {
 
     var isLoggedIn by remember { mutableStateOf(true) }
+    var showRegister by remember { mutableStateOf(false) }
     var showProfile by remember { mutableStateOf(false) }
 
     var categories by remember { mutableStateOf(listOf<CategoryItem>()) }
@@ -39,6 +47,21 @@ fun DisneyFilmApp(auth: FirebaseAuth, database: DatabaseReference) {
     var selectedFranchise by remember { mutableStateOf<FranchiseItem?>(null) }
     var selectedSaga by remember { mutableStateOf<SagaItem?>(null) }
     var selectedFilm by remember { mutableStateOf<FilmItem?>(null) }
+
+    fun logout() {
+        auth.signOut()
+        showProfile = false
+        showRegister = false
+        selectedCategory = null
+        selectedFranchise = null
+        selectedSaga = null
+        selectedFilm = null
+        categories = emptyList()
+        franchises = emptyList()
+        sagas = emptyList()
+        films = emptyList()
+        isLoggedIn = false
+    }
 
     LaunchedEffect(Unit) {
         database.child("categories")
@@ -93,7 +116,6 @@ fun DisneyFilmApp(auth: FirebaseAuth, database: DatabaseReference) {
             .child(franchiseId)
             .addListenerForSingleValueEvent(object : ValueEventListener {
                 override fun onDataChange(snapshot: DataSnapshot) {
-
                     val sousSagasSnapshot = snapshot.child("sous_sagas")
                     val filmsSnapshot = snapshot.child("films")
 
@@ -183,10 +205,24 @@ fun DisneyFilmApp(auth: FirebaseAuth, database: DatabaseReference) {
     }
 
     when {
-        !isLoggedIn -> {
+        !isLoggedIn && !showRegister -> {
             LoginScreen(
                 auth = auth,
-                onLoginSuccess = { isLoggedIn = true }
+                onLoginSuccess = { isLoggedIn = true },
+                onGoToRegister = { showRegister = true }
+            )
+        }
+
+        !isLoggedIn && showRegister -> {
+            RegisterScreen(
+                auth = auth,
+                onRegisterSuccess = {
+                    isLoggedIn = true
+                    showRegister = false
+                },
+                onBackToLogin = {
+                    showRegister = false
+                }
             )
         }
 
@@ -194,18 +230,9 @@ fun DisneyFilmApp(auth: FirebaseAuth, database: DatabaseReference) {
             ProfileScreen(
                 auth = auth,
                 database = database,
-                onBackClick = {
-                    showProfile = false
-                },
-                onLogoutClick = {
-                    auth.signOut()
-                    showProfile = false
-                    selectedCategory = null
-                    selectedFranchise = null
-                    selectedSaga = null
-                    selectedFilm = null
-                    isLoggedIn = false
-                }
+                onBackClick = { showProfile = false },
+                onLogoutClick = { logout() },
+                onProfileClick = { showProfile = true }
             )
         }
 
@@ -221,9 +248,8 @@ fun DisneyFilmApp(auth: FirebaseAuth, database: DatabaseReference) {
                     films = emptyList()
                     loadFranchises(category.id)
                 },
-                onProfileClick = {
-                    showProfile = true
-                }
+                onProfileClick = { showProfile = true },
+                onLogoutClick = { logout() }
             )
         }
 
@@ -231,15 +257,15 @@ fun DisneyFilmApp(auth: FirebaseAuth, database: DatabaseReference) {
             FranchisesScreen(
                 categoryName = selectedCategory!!.name,
                 franchises = franchises,
-                onBackClick = {
-                    selectedCategory = null
-                },
+                onBackClick = { selectedCategory = null },
                 onFranchiseClick = { franchise ->
                     selectedFranchise = franchise
                     selectedSaga = null
                     selectedFilm = null
                     loadSagasOrFilms(selectedCategory!!.id, franchise.id)
-                }
+                },
+                onProfileClick = { showProfile = true },
+                onLogoutClick = { logout() }
             )
         }
 
@@ -255,7 +281,9 @@ fun DisneyFilmApp(auth: FirebaseAuth, database: DatabaseReference) {
                     selectedSaga = saga
                     selectedFilm = null
                     loadFilms(selectedCategory!!.id, selectedFranchise!!.id, saga.id)
-                }
+                },
+                onProfileClick = { showProfile = true },
+                onLogoutClick = { logout() }
             )
         }
 
@@ -272,7 +300,9 @@ fun DisneyFilmApp(auth: FirebaseAuth, database: DatabaseReference) {
                 },
                 onFilmClick = { film ->
                     selectedFilm = film
-                }
+                },
+                onProfileClick = { showProfile = true },
+                onLogoutClick = { logout() }
             )
         }
 
@@ -281,9 +311,9 @@ fun DisneyFilmApp(auth: FirebaseAuth, database: DatabaseReference) {
                 film = selectedFilm!!,
                 auth = auth,
                 database = database,
-                onBackClick = {
-                    selectedFilm = null
-                }
+                onBackClick = { selectedFilm = null },
+                onProfileClick = { showProfile = true },
+                onLogoutClick = { logout() }
             )
         }
     }

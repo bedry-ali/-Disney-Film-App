@@ -9,13 +9,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.*
+import fr.isen.bedry.disneyfilmapp.ui.theme.DarkCard
+import fr.isen.bedry.disneyfilmapp.ui.theme.GrayText
+import fr.isen.bedry.disneyfilmapp.ui.theme.WhiteText
 
 @Composable
 fun FilmDetailScreen(
     film: FilmItem,
     auth: FirebaseAuth,
     database: DatabaseReference,
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    onProfileClick: () -> Unit,
+    onLogoutClick: () -> Unit
 ) {
     val userId = auth.currentUser?.uid
 
@@ -26,25 +31,31 @@ fun FilmDetailScreen(
 
     var usersWhoOwnAndWantToGetRid by remember { mutableStateOf(listOf<String>()) }
 
-    LaunchedEffect(film.title) {
-        userId?.let { uid ->
-            database.child("users")
-                .child(uid)
-                .child("filmsStatus")
-                .child(film.title)
-                .addListenerForSingleValueEvent(object : ValueEventListener {
-                    override fun onDataChange(snapshot: DataSnapshot) {
-                        watched = snapshot.child("watched").getValue(Boolean::class.java) ?: false
-                        wantToWatch = snapshot.child("wantToWatch").getValue(Boolean::class.java) ?: false
-                        owned = snapshot.child("owned").getValue(Boolean::class.java) ?: false
-                        wantToGetRidOf = snapshot.child("wantToGetRidOf").getValue(Boolean::class.java) ?: false
-                    }
-
-                    override fun onCancelled(error: DatabaseError) {
-                        println("Firebase error: ${error.message}")
-                    }
-                })
+    LaunchedEffect(film.title, userId) {
+        if (userId == null) {
+            println("ERROR: userId is null")
+            return@LaunchedEffect
         }
+
+        database.child("users")
+            .child(userId)
+            .child("filmsStatus")
+            .child(film.title)
+            .addListenerForSingleValueEvent(object : ValueEventListener {
+                override fun onDataChange(snapshot: DataSnapshot) {
+                    watched = snapshot.child("watched").getValue(Boolean::class.java) ?: false
+                    wantToWatch = snapshot.child("wantToWatch").getValue(Boolean::class.java) ?: false
+                    owned = snapshot.child("owned").getValue(Boolean::class.java) ?: false
+                    wantToGetRidOf = snapshot.child("wantToGetRidOf").getValue(Boolean::class.java) ?: false
+
+                    println("READ STATUS -> ${film.title}")
+                    println("watched=$watched wantToWatch=$wantToWatch owned=$owned wantToGetRidOf=$wantToGetRidOf")
+                }
+
+                override fun onCancelled(error: DatabaseError) {
+                    println("Firebase read error: ${error.message}")
+                }
+            })
 
         database.child("users")
             .addListenerForSingleValueEvent(object : ValueEventListener {
@@ -67,146 +78,184 @@ fun FilmDetailScreen(
                             .child("wantToGetRidOf")
                             .getValue(Boolean::class.java) ?: false
 
-                        // si tu veux exclure l'utilisateur connecté de la liste, garde cette condition
                         if (otherUserId != userId && otherOwned && otherWantToGetRidOf) {
                             tempUsers.add(email)
                         }
-
-                        // si tu veux inclure aussi l'utilisateur connecté, remplace par :
-                        // if (otherOwned && otherWantToGetRidOf) {
-                        //     tempUsers.add(email)
-                        // }
                     }
 
                     usersWhoOwnAndWantToGetRid = tempUsers
                 }
 
                 override fun onCancelled(error: DatabaseError) {
-                    println("Firebase error: ${error.message}")
+                    println("Firebase users list error: ${error.message}")
                 }
             })
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(20.dp)
+    UiScreen(
+        title = film.title,
+        showBack = true,
+        onBackClick = onBackClick,
+        onProfileClick = onProfileClick,
+        onLogoutClick = onLogoutClick
     ) {
-        Button(onClick = { onBackClick() }) {
-            Text("Back")
+        Card(
+            colors = CardDefaults.cardColors(containerColor = DarkCard),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(18.dp)) {
+                Text("Episode: ${film.number}", color = GrayText)
+                Text("Year: ${film.year}", color = GrayText)
+                Text("Genre: ${film.genre}", color = GrayText)
+            }
         }
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        Text(
-            text = film.title,
-            style = MaterialTheme.typography.headlineMedium
-        )
+        StatusButton(
+            text = if (watched) "Watched ✅" else "Watched",
+            onClick = {
+                if (userId == null) {
+                    println("ERROR: userId is null on watched click")
+                    return@StatusButton
+                }
 
-        Spacer(modifier = Modifier.height(10.dp))
-
-        Text("Episode: ${film.number}")
-        Text("Year: ${film.year}")
-        Text("Genre: ${film.genre}")
-
-        Spacer(modifier = Modifier.height(30.dp))
-
-        Button(onClick = {
-            userId?.let { uid ->
                 val newValue = !watched
                 database.child("users")
-                    .child(uid)
+                    .child(userId)
                     .child("filmsStatus")
                     .child(film.title)
                     .child("watched")
                     .setValue(newValue)
-
-                watched = newValue
+                    .addOnSuccessListener {
+                        watched = newValue
+                        println("WRITE watched=$newValue for ${film.title}")
+                    }
+                    .addOnFailureListener { e ->
+                        println("WRITE watched failed: ${e.message}")
+                    }
             }
-        }) {
-            Text(if (watched) "Watched ✅" else "Watched")
-        }
+        )
 
-        Spacer(modifier = Modifier.height(10.dp))
+        StatusButton(
+            text = if (wantToWatch) "Want to watch ✅" else "Want to watch",
+            onClick = {
+                if (userId == null) {
+                    println("ERROR: userId is null on wantToWatch click")
+                    return@StatusButton
+                }
 
-        Button(onClick = {
-            userId?.let { uid ->
                 val newValue = !wantToWatch
                 database.child("users")
-                    .child(uid)
+                    .child(userId)
                     .child("filmsStatus")
                     .child(film.title)
                     .child("wantToWatch")
                     .setValue(newValue)
-
-                wantToWatch = newValue
+                    .addOnSuccessListener {
+                        wantToWatch = newValue
+                        println("WRITE wantToWatch=$newValue for ${film.title}")
+                    }
+                    .addOnFailureListener { e ->
+                        println("WRITE wantToWatch failed: ${e.message}")
+                    }
             }
-        }) {
-            Text(if (wantToWatch) "Want to watch ✅" else "Want to watch")
-        }
+        )
 
-        Spacer(modifier = Modifier.height(10.dp))
+        StatusButton(
+            text = if (owned) "Own on DVD / Blu-ray ✅" else "Own on DVD / Blu-ray",
+            onClick = {
+                if (userId == null) {
+                    println("ERROR: userId is null on owned click")
+                    return@StatusButton
+                }
 
-        Button(onClick = {
-            userId?.let { uid ->
                 val newValue = !owned
                 database.child("users")
-                    .child(uid)
+                    .child(userId)
                     .child("filmsStatus")
                     .child(film.title)
                     .child("owned")
                     .setValue(newValue)
-
-                owned = newValue
+                    .addOnSuccessListener {
+                        owned = newValue
+                        println("WRITE owned=$newValue for ${film.title}")
+                    }
+                    .addOnFailureListener { e ->
+                        println("WRITE owned failed: ${e.message}")
+                    }
             }
-        }) {
-            Text(if (owned) "Own on DVD / Blu-ray ✅" else "Own on DVD / Blu-ray")
-        }
+        )
 
-        Spacer(modifier = Modifier.height(10.dp))
+        StatusButton(
+            text = if (wantToGetRidOf) "Want to get rid of ✅" else "Want to get rid of",
+            onClick = {
+                if (userId == null) {
+                    println("ERROR: userId is null on wantToGetRidOf click")
+                    return@StatusButton
+                }
 
-        Button(onClick = {
-            userId?.let { uid ->
                 val newValue = !wantToGetRidOf
                 database.child("users")
-                    .child(uid)
+                    .child(userId)
                     .child("filmsStatus")
                     .child(film.title)
                     .child("wantToGetRidOf")
                     .setValue(newValue)
-
-                wantToGetRidOf = newValue
+                    .addOnSuccessListener {
+                        wantToGetRidOf = newValue
+                        println("WRITE wantToGetRidOf=$newValue for ${film.title}")
+                    }
+                    .addOnFailureListener { e ->
+                        println("WRITE wantToGetRidOf failed: ${e.message}")
+                    }
             }
-        }) {
-            Text(if (wantToGetRidOf) "Want to get rid of ✅" else "Want to get rid of")
-        }
+        )
 
-        Spacer(modifier = Modifier.height(30.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
         Text(
             text = "Users who own this movie and want to get rid of it",
+            color = WhiteText,
             style = MaterialTheme.typography.titleMedium
         )
 
         Spacer(modifier = Modifier.height(10.dp))
 
         if (usersWhoOwnAndWantToGetRid.isEmpty()) {
-            Text("No users found")
+            Text("No users found", color = GrayText)
         } else {
             LazyColumn {
                 items(usersWhoOwnAndWantToGetRid) { email ->
                     Card(
+                        colors = CardDefaults.cardColors(containerColor = DarkCard),
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(bottom = 8.dp)
                     ) {
                         Text(
                             text = email,
+                            color = WhiteText,
                             modifier = Modifier.padding(16.dp)
                         )
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+fun StatusButton(
+    text: String,
+    onClick: () -> Unit
+) {
+    Button(
+        onClick = onClick,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 10.dp)
+    ) {
+        Text(text)
     }
 }

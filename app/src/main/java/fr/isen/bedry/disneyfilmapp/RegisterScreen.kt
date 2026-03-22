@@ -1,6 +1,5 @@
 package fr.isen.bedry.disneyfilmapp
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
@@ -9,7 +8,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -18,11 +16,13 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.FirebaseDatabase
 
 @Composable
-fun LoginScreen(
+fun RegisterScreen(
     auth: FirebaseAuth,
-    onLoginSuccess: () -> Unit,
-    onGoToRegister: () -> Unit
+    onRegisterSuccess: () -> Unit,
+    onBackToLogin: () -> Unit
 ) {
+    var firstName by remember { mutableStateOf("") }
+    var lastName by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf("") }
@@ -35,23 +35,43 @@ fun LoginScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Image(
-            painter = painterResource(id = R.drawable.disney_login),
-            contentDescription = "Disney Image",
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(180.dp)
-        )
-
-        Spacer(modifier = Modifier.height(24.dp))
-
         Text(
-            text = "Disney Film App Login",
+            text = "Create your account",
             color = Color.White,
             fontSize = 22.sp
         )
 
         Spacer(modifier = Modifier.height(24.dp))
+
+        OutlinedTextField(
+            value = firstName,
+            onValueChange = {
+                firstName = it
+                errorMessage = ""
+            },
+            label = { Text("First name", color = Color.LightGray) },
+            singleLine = true,
+            textStyle = LocalTextStyle.current.copy(color = Color.White),
+            colors = textFieldColors(),
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        OutlinedTextField(
+            value = lastName,
+            onValueChange = {
+                lastName = it
+                errorMessage = ""
+            },
+            label = { Text("Last name", color = Color.LightGray) },
+            singleLine = true,
+            textStyle = LocalTextStyle.current.copy(color = Color.White),
+            colors = textFieldColors(),
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
 
         OutlinedTextField(
             value = email,
@@ -63,19 +83,11 @@ fun LoginScreen(
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
             textStyle = LocalTextStyle.current.copy(color = Color.White),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = Color(0xFF7C4DFF),
-                unfocusedBorderColor = Color.Gray,
-                focusedTextColor = Color.White,
-                unfocusedTextColor = Color.White,
-                focusedLabelColor = Color(0xFF7C4DFF),
-                unfocusedLabelColor = Color.LightGray,
-                cursorColor = Color.White
-            ),
+            colors = textFieldColors(),
             modifier = Modifier.fillMaxWidth()
         )
 
-        Spacer(modifier = Modifier.height(14.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
         OutlinedTextField(
             value = password,
@@ -88,15 +100,7 @@ fun LoginScreen(
             visualTransformation = PasswordVisualTransformation(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
             textStyle = LocalTextStyle.current.copy(color = Color.White),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = Color(0xFF7C4DFF),
-                unfocusedBorderColor = Color.Gray,
-                focusedTextColor = Color.White,
-                unfocusedTextColor = Color.White,
-                focusedLabelColor = Color(0xFF7C4DFF),
-                unfocusedLabelColor = Color.LightGray,
-                cursorColor = Color.White
-            ),
+            colors = textFieldColors(),
             modifier = Modifier.fillMaxWidth()
         )
 
@@ -112,29 +116,40 @@ fun LoginScreen(
 
         Button(
             onClick = {
+                val cleanFirstName = firstName.trim()
+                val cleanLastName = lastName.trim()
                 val cleanEmail = email.trim()
                 val cleanPassword = password.trim()
 
-                if (cleanEmail.isEmpty() || cleanPassword.isEmpty()) {
+                if (
+                    cleanFirstName.isEmpty() ||
+                    cleanLastName.isEmpty() ||
+                    cleanEmail.isEmpty() ||
+                    cleanPassword.isEmpty()
+                ) {
                     errorMessage = "Please fill in all fields"
                     return@Button
                 }
 
-                auth.signInWithEmailAndPassword(cleanEmail, cleanPassword)
+                auth.createUserWithEmailAndPassword(cleanEmail, cleanPassword)
                     .addOnCompleteListener { task ->
                         if (task.isSuccessful) {
                             val userId = auth.currentUser?.uid
-                            val currentEmail = auth.currentUser?.email ?: cleanEmail
 
                             if (userId != null) {
+                                val userMap = mapOf(
+                                    "firstName" to cleanFirstName,
+                                    "lastName" to cleanLastName,
+                                    "email" to cleanEmail
+                                )
+
                                 FirebaseDatabase.getInstance()
                                     .reference
                                     .child("users")
                                     .child(userId)
-                                    .child("email")
-                                    .setValue(currentEmail)
+                                    .setValue(userMap)
                                     .addOnSuccessListener {
-                                        onLoginSuccess()
+                                        onRegisterSuccess()
                                     }
                                     .addOnFailureListener { e ->
                                         errorMessage = e.message ?: "Database save failed"
@@ -143,7 +158,7 @@ fun LoginScreen(
                                 errorMessage = "User ID not found"
                             }
                         } else {
-                            errorMessage = task.exception?.message ?: "Login failed"
+                            errorMessage = task.exception?.message ?: "Register failed"
                         }
                     }
             },
@@ -151,18 +166,29 @@ fun LoginScreen(
                 .fillMaxWidth()
                 .height(50.dp)
         ) {
-            Text("Login")
+            Text("Register")
         }
 
         Spacer(modifier = Modifier.height(12.dp))
 
         OutlinedButton(
-            onClick = { onGoToRegister() },
+            onClick = { onBackToLogin() },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(50.dp)
         ) {
-            Text("Go to Register")
+            Text("Back to Login")
         }
     }
 }
+
+@Composable
+private fun textFieldColors() = OutlinedTextFieldDefaults.colors(
+    focusedBorderColor = Color(0xFF7C4DFF),
+    unfocusedBorderColor = Color.Gray,
+    focusedTextColor = Color.White,
+    unfocusedTextColor = Color.White,
+    focusedLabelColor = Color(0xFF7C4DFF),
+    unfocusedLabelColor = Color.LightGray,
+    cursorColor = Color.White
+)

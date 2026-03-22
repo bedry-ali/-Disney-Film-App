@@ -8,46 +8,48 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import fr.isen.bedry.disneyfilmapp.ui.theme.DarkCard
+import fr.isen.bedry.disneyfilmapp.ui.theme.GrayText
+import fr.isen.bedry.disneyfilmapp.ui.theme.WhiteText
 
 @Composable
 fun FilmsScreen(
     title: String,
     films: List<FilmItem>,
     onBackClick: () -> Unit,
-    onFilmClick: (FilmItem) -> Unit
+    onFilmClick: (FilmItem) -> Unit,
+    onProfileClick: () -> Unit,
+    onLogoutClick: () -> Unit
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(20.dp)
+    UiScreen(
+        title = title,
+        showBack = true,
+        onBackClick = onBackClick,
+        onProfileClick = onProfileClick,
+        onLogoutClick = onLogoutClick
     ) {
-        Button(onClick = { onBackClick() }) {
-            Text("Back")
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Text(
-            text = title,
-            style = MaterialTheme.typography.headlineMedium
-        )
-
-        Spacer(modifier = Modifier.height(20.dp))
-
         LazyColumn {
             items(films) { film ->
                 Card(
+                    colors = CardDefaults.cardColors(containerColor = DarkCard),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 12.dp)
                         .clickable { onFilmClick(film) }
                 ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text(text = film.title)
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(text = "Year: ${film.year}")
-                        Text(text = "Genre: ${film.genre}")
-                        Text(text = "Episode: ${film.number}")
+                    Column(modifier = Modifier.padding(18.dp)) {
+                        Text(
+                            text = film.title,
+                            color = WhiteText,
+                            style = MaterialTheme.typography.titleLarge
+                        )
+
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        Text("Year: ${film.year}", color = GrayText)
+                        Text("Genre: ${film.genre}", color = GrayText)
+                        Text("Episode: ${film.number}", color = GrayText)
                     }
                 }
             }

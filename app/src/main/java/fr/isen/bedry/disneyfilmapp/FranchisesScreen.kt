@@ -4,42 +4,34 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import fr.isen.bedry.disneyfilmapp.ui.theme.DarkCard
+import fr.isen.bedry.disneyfilmapp.ui.theme.WhiteText
 
 @Composable
 fun FranchisesScreen(
     categoryName: String,
     franchises: List<FranchiseItem>,
     onBackClick: () -> Unit,
-    onFranchiseClick: (FranchiseItem) -> Unit
+    onFranchiseClick: (FranchiseItem) -> Unit,
+    onProfileClick: () -> Unit,
+    onLogoutClick: () -> Unit
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(20.dp)
+    UiScreen(
+        title = categoryName,
+        showBack = true,
+        onBackClick = onBackClick,
+        onProfileClick = onProfileClick,
+        onLogoutClick = onLogoutClick
     ) {
-        Button(onClick = { onBackClick() }) {
-            Text("Back")
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Text(
-            categoryName,
-            style = MaterialTheme.typography.headlineMedium
-        )
-
-        Spacer(modifier = Modifier.height(20.dp))
-
         LazyColumn {
             items(franchises) { franchise ->
                 Card(
+                    colors = CardDefaults.cardColors(containerColor = DarkCard),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 12.dp)
@@ -47,7 +39,9 @@ fun FranchisesScreen(
                 ) {
                     Text(
                         text = franchise.name,
-                        modifier = Modifier.padding(16.dp)
+                        color = WhiteText,
+                        modifier = Modifier.padding(18.dp),
+                        style = MaterialTheme.typography.titleMedium
                     )
                 }
             }
